@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #09130e;
+  --foreground: #f4f3ee;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  background-image: 
+    radial-gradient(ellipse at 50% 0%, rgba(35, 75, 55, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse at 80% 90%, rgba(26, 45, 33, 0.25) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom subtle forest scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 22, 16, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: #28493c;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4e8e72;
+}
+
+/* Subtle organic grain overlay helper */
+.forest-card {
+  background: linear-gradient(135deg, rgba(17, 34, 25, 0.85) 0%, rgba(10, 22, 16, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(78, 142, 114, 0.18);
+}
+
+.forest-card:hover {
+  border-color: rgba(113, 170, 143, 0.32);
+}

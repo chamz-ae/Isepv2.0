@@ -1,0 +1,44 @@
+{
+  "name": "ASAP ISEP — Daging Asap & Lodging",
+  "short_name": "ASAP ISEP",
+  "description": "Sistem Terintegrasi Smokehouse, Lodging & POS Kasir",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard & POS Kasir",
+      "short_name": "Dashboard",
+      "description": "Akses langsung Dashboard Operasional dan Kasir POS",
+      "url": "/admin?source=pwa",
+      "icons": [
+        {
+          "src": "/favicon.ico",
+          "sizes": "64x64"
+        }
+      ]
+    },
+    {
+      "name": "KDS Dapur Smokehouse",
+      "short_name": "KDS Dapur",
+      "description": "Kitchen Display System Pesanan Daging",
+      "url": "/admin/kds?source=pwa",
+      "icons": [
+        {
+          "src": "/favicon.ico",
+          "sizes": "64x64"
+        }
+      ]
+    }
+  ]
+}
