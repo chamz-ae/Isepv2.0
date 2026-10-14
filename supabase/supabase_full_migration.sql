@@ -1,6 +1,6 @@
--- ============================================================
+﻿-- ============================================================
 -- MIGRATION 0001: INITIAL SCHEMA & EXTENSIONS
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -92,7 +92,7 @@ END;
 $$ LANGUAGE plpgsql;
 -- ============================================================
 -- MIGRATION 0002: AUTH, PROFILES, ROLES & SECURITY
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -105,8 +105,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TRIGGER update_profiles_timestamp
-    BEFORE UPDATE ON public.profiles
+DROP TRIGGER IF EXISTS update_profiles_timestamp ON public.profiles;
+CREATE TRIGGER update_profiles_timestamp BEFORE UPDATE ON public.profiles
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -130,8 +130,8 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_new_user();
 
@@ -163,18 +163,18 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 -- Enable RLS on profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow users to read their own profile"
-    ON public.profiles FOR SELECT
+DROP POLICY IF EXISTS "Allow users to read their own profile" ON public.profiles;
+CREATE POLICY "Allow users to read their own profile" ON public.profiles FOR SELECT
     TO authenticated
     USING (id = auth.uid() OR public.is_admin_or_owner());
 
-CREATE POLICY "Allow owner/admin to manage all profiles"
-    ON public.profiles FOR ALL
+DROP POLICY IF EXISTS "Allow owner/admin to manage all profiles" ON public.profiles;
+CREATE POLICY "Allow owner/admin to manage all profiles" ON public.profiles FOR ALL
     TO authenticated
     USING (public.is_admin_or_owner());
 -- ============================================================
 -- MIGRATION 0003: GUESTS, ROOMS, RESTAURANT TABLES, MENUS
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 -- 1. GUESTS
@@ -196,8 +196,8 @@ CREATE TABLE IF NOT EXISTS public.guests (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_guests_phone ON public.guests(phone);
 CREATE INDEX IF NOT EXISTS idx_guests_name ON public.guests(name);
 
-CREATE TRIGGER update_guests_timestamp
-    BEFORE UPDATE ON public.guests
+DROP TRIGGER IF EXISTS update_guests_timestamp ON public.guests;
+CREATE TRIGGER update_guests_timestamp BEFORE UPDATE ON public.guests
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -221,8 +221,8 @@ CREATE TABLE IF NOT EXISTS public.rooms (
 CREATE INDEX IF NOT EXISTS idx_rooms_status ON public.rooms(status);
 CREATE INDEX IF NOT EXISTS idx_rooms_is_active ON public.rooms(is_active);
 
-CREATE TRIGGER update_rooms_timestamp
-    BEFORE UPDATE ON public.rooms
+DROP TRIGGER IF EXISTS update_rooms_timestamp ON public.rooms;
+CREATE TRIGGER update_rooms_timestamp BEFORE UPDATE ON public.rooms
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -240,8 +240,8 @@ CREATE TABLE IF NOT EXISTS public.restaurant_tables (
 
 CREATE INDEX IF NOT EXISTS idx_tables_status ON public.restaurant_tables(status);
 
-CREATE TRIGGER update_tables_timestamp
-    BEFORE UPDATE ON public.restaurant_tables
+DROP TRIGGER IF EXISTS update_tables_timestamp ON public.restaurant_tables;
+CREATE TRIGGER update_tables_timestamp BEFORE UPDATE ON public.restaurant_tables
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -280,8 +280,8 @@ CREATE INDEX IF NOT EXISTS idx_menus_category ON public.menus(category_id);
 CREATE INDEX IF NOT EXISTS idx_menus_access ON public.menus(access_scope);
 CREATE INDEX IF NOT EXISTS idx_menus_active_available ON public.menus(is_active, is_available);
 
-CREATE TRIGGER update_menus_timestamp
-    BEFORE UPDATE ON public.menus
+DROP TRIGGER IF EXISTS update_menus_timestamp ON public.menus;
+CREATE TRIGGER update_menus_timestamp BEFORE UPDATE ON public.menus
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -293,26 +293,35 @@ ALTER TABLE public.menu_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.menus ENABLE ROW LEVEL SECURITY;
 
 -- Guests: Staff full access, Public cannot read guest lists directly
+DROP POLICY IF EXISTS "Staff read/write guests" ON public.guests;
 CREATE POLICY "Staff read/write guests" ON public.guests FOR ALL TO authenticated USING (public.is_staff());
 
 -- Rooms: Public can read active rooms, Staff full access
+DROP POLICY IF EXISTS "Public read active rooms" ON public.rooms;
 CREATE POLICY "Public read active rooms" ON public.rooms FOR SELECT USING (is_active = TRUE);
+DROP POLICY IF EXISTS "Staff manage rooms" ON public.rooms;
 CREATE POLICY "Staff manage rooms" ON public.rooms FOR ALL TO authenticated USING (public.is_staff());
 
 -- Tables: Staff full access
+DROP POLICY IF EXISTS "Public read active tables" ON public.restaurant_tables;
 CREATE POLICY "Public read active tables" ON public.restaurant_tables FOR SELECT USING (is_active = TRUE);
+DROP POLICY IF EXISTS "Staff manage tables" ON public.restaurant_tables;
 CREATE POLICY "Staff manage tables" ON public.restaurant_tables FOR ALL TO authenticated USING (public.is_staff());
 
 -- Categories: Public read, Staff manage
+DROP POLICY IF EXISTS "Public read menu categories" ON public.menu_categories;
 CREATE POLICY "Public read menu categories" ON public.menu_categories FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Staff manage categories" ON public.menu_categories;
 CREATE POLICY "Staff manage categories" ON public.menu_categories FOR ALL TO authenticated USING (public.is_staff());
 
 -- Menus: Public read active and available, Staff full access
+DROP POLICY IF EXISTS "Public read active menus" ON public.menus;
 CREATE POLICY "Public read active menus" ON public.menus FOR SELECT USING (is_active = TRUE AND is_available = TRUE);
+DROP POLICY IF EXISTS "Staff manage menus" ON public.menus;
 CREATE POLICY "Staff manage menus" ON public.menus FOR ALL TO authenticated USING (public.is_staff());
 -- ============================================================
 -- MIGRATION 0004: ORDERS, BOOKINGS, PAYMENTS & CLOSING
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 -- 1. ORDERS
@@ -368,8 +377,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON public.orders(payment_st
 CREATE INDEX IF NOT EXISTS idx_orders_check_in_out ON public.orders(check_in_date, check_out_date);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at);
 
-CREATE TRIGGER update_orders_timestamp
-    BEFORE UPDATE ON public.orders
+DROP TRIGGER IF EXISTS update_orders_timestamp ON public.orders;
+CREATE TRIGGER update_orders_timestamp BEFORE UPDATE ON public.orders
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -444,24 +453,33 @@ ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cashier_closings ENABLE ROW LEVEL SECURITY;
 
 -- Orders RLS: Customer can insert, can read by booking_code
+DROP POLICY IF EXISTS "Public insert orders" ON public.orders;
 CREATE POLICY "Public insert orders" ON public.orders FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public select orders" ON public.orders;
 CREATE POLICY "Public select orders" ON public.orders FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Staff manage orders" ON public.orders;
 CREATE POLICY "Staff manage orders" ON public.orders FOR ALL TO authenticated USING (public.is_staff());
 
 -- Order items RLS:
+DROP POLICY IF EXISTS "Public insert order items" ON public.order_items;
 CREATE POLICY "Public insert order items" ON public.order_items FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public select order items" ON public.order_items;
 CREATE POLICY "Public select order items" ON public.order_items FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Staff manage order items" ON public.order_items;
 CREATE POLICY "Staff manage order items" ON public.order_items FOR ALL TO authenticated USING (public.is_staff());
 
 -- Payments RLS: Staff full access
+DROP POLICY IF EXISTS "Public select own payments" ON public.payments;
 CREATE POLICY "Public select own payments" ON public.payments FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Staff manage payments" ON public.payments;
 CREATE POLICY "Staff manage payments" ON public.payments FOR ALL TO authenticated USING (public.is_staff());
 
 -- Closings RLS: Staff full access
+DROP POLICY IF EXISTS "Staff manage closings" ON public.cashier_closings;
 CREATE POLICY "Staff manage closings" ON public.cashier_closings FOR ALL TO authenticated USING (public.is_staff());
 -- ============================================================
 -- MIGRATION 0005: SUPPLIERS, PURCHASING, INVENTORY & MOVEMENTS
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 -- 1. SUPPLIERS
@@ -494,8 +512,8 @@ CREATE INDEX IF NOT EXISTS idx_inventory_category ON public.inventory(category);
 CREATE INDEX IF NOT EXISTS idx_inventory_meat_type ON public.inventory(meat_type);
 CREATE INDEX IF NOT EXISTS idx_inventory_stock ON public.inventory(stock_gram);
 
-CREATE TRIGGER update_inventory_timestamp
-    BEFORE UPDATE ON public.inventory
+DROP TRIGGER IF EXISTS update_inventory_timestamp ON public.inventory;
+CREATE TRIGGER update_inventory_timestamp BEFORE UPDATE ON public.inventory
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_column();
 
@@ -562,14 +580,19 @@ ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.purchase_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Staff manage suppliers" ON public.suppliers;
 CREATE POLICY "Staff manage suppliers" ON public.suppliers FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage inventory" ON public.inventory;
 CREATE POLICY "Staff manage inventory" ON public.inventory FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage purchases" ON public.purchases;
 CREATE POLICY "Staff manage purchases" ON public.purchases FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage purchase_items" ON public.purchase_items;
 CREATE POLICY "Staff manage purchase_items" ON public.purchase_items FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage stock_movements" ON public.stock_movements;
 CREATE POLICY "Staff manage stock_movements" ON public.stock_movements FOR ALL TO authenticated USING (public.is_staff());
 -- ============================================================
 -- MIGRATION 0006: COOKING BATCH, YIELD & STOCK OPNAME
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 -- 1. COOKING BATCHES (RAW VS COOKED & YIELD FORMULA)
@@ -625,12 +648,15 @@ ALTER TABLE public.cooking_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_opnames ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_opname_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Staff manage cooking_batches" ON public.cooking_batches;
 CREATE POLICY "Staff manage cooking_batches" ON public.cooking_batches FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage stock_opnames" ON public.stock_opnames;
 CREATE POLICY "Staff manage stock_opnames" ON public.stock_opnames FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff manage stock_opname_items" ON public.stock_opname_items;
 CREATE POLICY "Staff manage stock_opname_items" ON public.stock_opname_items FOR ALL TO authenticated USING (public.is_staff());
 -- ============================================================
 -- MIGRATION 0007: GALLERY, WEBHOOKS, AUDIT & ATOMIC RPCS
--- ASAP ISEP — Daging Asap
+-- ASAP ISEP â€” Daging Asap
 -- ============================================================
 
 -- 1. GALLERY SUBMISSIONS
@@ -698,7 +724,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(create
 -- 5. SETTINGS
 CREATE TABLE IF NOT EXISTS public.settings (
     id TEXT PRIMARY KEY DEFAULT 'general',
-    business_name TEXT NOT NULL DEFAULT 'ASAP ISEP — Daging Asap',
+    business_name TEXT NOT NULL DEFAULT 'ASAP ISEP â€” Daging Asap',
     whatsapp_number TEXT NOT NULL DEFAULT '+6281234567890',
     address TEXT NOT NULL DEFAULT 'Jl. Raya Lereng Asap No. 8, Cisarua, Bogor',
     default_lodging_price_per_person NUMERIC(12, 2) NOT NULL DEFAULT 200000,
@@ -1044,22 +1070,30 @@ ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
 -- Gallery: Public can view approved, Public can insert with consent, Staff full access
+DROP POLICY IF EXISTS "Public read approved gallery" ON public.gallery_submissions;
 CREATE POLICY "Public read approved gallery" ON public.gallery_submissions FOR SELECT USING (status = 'approved');
+DROP POLICY IF EXISTS "Public submit gallery" ON public.gallery_submissions;
 CREATE POLICY "Public submit gallery" ON public.gallery_submissions FOR INSERT WITH CHECK (consent_granted = TRUE);
+DROP POLICY IF EXISTS "Staff manage gallery" ON public.gallery_submissions;
 CREATE POLICY "Staff manage gallery" ON public.gallery_submissions FOR ALL TO authenticated USING (public.is_staff());
 
 -- Webhooks: Staff only
+DROP POLICY IF EXISTS "Staff manage webhooks" ON public.webhook_integrations;
 CREATE POLICY "Staff manage webhooks" ON public.webhook_integrations FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Staff read webhook logs" ON public.webhook_logs;
 CREATE POLICY "Staff read webhook logs" ON public.webhook_logs FOR ALL TO authenticated USING (public.is_staff());
 
 -- Audit: Staff only
+DROP POLICY IF EXISTS "Staff read audit logs" ON public.audit_logs;
 CREATE POLICY "Staff read audit logs" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_staff());
 
 -- Settings: Public can read business name/WA/address, Staff can update
+DROP POLICY IF EXISTS "Public read general settings" ON public.settings;
 CREATE POLICY "Public read general settings" ON public.settings FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Staff manage settings" ON public.settings;
 CREATE POLICY "Staff manage settings" ON public.settings FOR ALL TO authenticated USING (public.is_staff());
 -- ============================================================
--- ASAP ISEP — DAGING ASAP: MASTER SEED DATA
+-- ASAP ISEP â€” DAGING ASAP: MASTER SEED DATA
 -- Sesuai Instruksi Resmi Master Prompt:
 -- Hanya memuat master data menu restoran & penginapan,
 -- master kategori, dan konfigurasi awal.
@@ -1191,7 +1225,7 @@ INSERT INTO public.menus (
     TRUE,
     'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80'
 ),
--- Sop & Kuah (Konfigurasi harga rentang Rp80.000–Rp180.000)
+-- Sop & Kuah (Konfigurasi harga rentang Rp80.000â€“Rp180.000)
 (
     'd0000007-0000-0000-0000-000000000001',
     'c0000002-0000-0000-0000-000000000002',
@@ -1481,7 +1515,7 @@ INSERT INTO public.settings (
     default_lodging_price_per_person, auto_backup_enabled, auto_backup_schedule
 ) VALUES (
     'general',
-    'ASAP ISEP — Daging Asap',
+    'ASAP ISEP â€” Daging Asap',
     '+6281234567890',
     'Jl. Raya Lereng Asap No. 8, Cisarua, Bogor',
     200000,
@@ -1491,3 +1525,4 @@ INSERT INTO public.settings (
 ON CONFLICT (id) DO UPDATE SET
     business_name = EXCLUDED.business_name,
     default_lodging_price_per_person = EXCLUDED.default_lodging_price_per_person;
+
