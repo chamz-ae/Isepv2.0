@@ -50,7 +50,22 @@ export default function PosRestoranPage() {
       setMenus(m);
       setTables(t);
       setGuests(g);
-      if (t.length > 0) setSelectedTableId(t[0].id);
+
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const qName = params.get('guestName');
+        const qPhone = params.get('guestPhone');
+        const qTableId = params.get('tableId');
+        if (qName) setGuestName(qName);
+        if (qPhone) setGuestPhone(qPhone);
+        if (qTableId) {
+          setSelectedTableId(qTableId);
+        } else if (t.length > 0) {
+          setSelectedTableId(t[0].id);
+        }
+      } else if (t.length > 0) {
+        setSelectedTableId(t[0].id);
+      }
     }
     init();
   }, []);

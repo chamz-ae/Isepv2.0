@@ -196,3 +196,98 @@ export async function updateRoom(room: Partial<Room>): Promise<Room> {
   }
   return updatedRoom;
 }
+
+function isValidUUID(id?: string | null): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+export async function saveTable(table: Partial<RestaurantTable>): Promise<RestaurantTable> {
+  const configured = isSupabaseConfigured();
+  if (configured) {
+    try {
+      const supabase = createClient();
+      if (table.id && isValidUUID(table.id)) {
+        const { data, error } = await supabase
+          .from('restaurant_tables')
+          .update({
+            table_number: table.table_number,
+            capacity: table.capacity,
+            status: table.status,
+            location_notes: table.location_notes,
+            is_active: table.is_active ?? true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', table.id)
+          .select()
+          .single();
+        if (!error && data) return data as RestaurantTable;
+      } else {
+        const { data, error } = await supabase
+          .from('restaurant_tables')
+          .insert({
+            table_number: table.table_number || 'Meja Baru',
+            capacity: table.capacity || 4,
+            status: table.status || 'available',
+            location_notes: table.location_notes || null,
+            is_active: table.is_active ?? true,
+          })
+          .select()
+          .single();
+        if (!error && data) return data as RestaurantTable;
+      }
+    } catch (err) {
+      console.warn('Supabase saveTable fallback to local store:', err);
+    }
+  }
+
+  const all = await getTables();
+  let saved: RestaurantTable;
+  if (table.id) {
+    saved = { ...all.find((t) => t.id === table.id)!, ...table, updated_at: new Date().toISOString() } as RestaurantTable;
+    const list = all.map((t) => (t.id === table.id ? saved : t));
+    if (typeof window !== 'undefined') localStorage.setItem('asap_tables_store', JSON.stringify(list));
+  } else {
+    saved = {
+      ...table,
+      id: 't_' + Date.now(),
+      table_number: table.table_number || `Meja ${all.length + 1}`,
+      capacity: table.capacity || 4,
+      status: table.status || 'available',
+      location_notes: table.location_notes || '',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as RestaurantTable;
+    const list = [...all, saved];
+    if (typeof window !== 'undefined') localStorage.setItem('asap_tables_store', JSON.stringify(list));
+  }
+  return saved;
+}
+
+export async function deleteTable(id: string): Promise<boolean> {
+  const configured = isSupabaseConfigured();
+  if (configured && isValidUUID(id)) {
+    try {
+      const supabase = createClient();
+      await supabase.from('restaurant_tables').delete().eq('id', id);
+    } catch (err) {
+      console.warn('Supabase deleteTable fallback to local store:', err);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('asap_tables_store');
+    if (stored) {
+      try {
+        const list: RestaurantTable[] = JSON.parse(stored);
+        const filtered = list.filter((t) => t.id !== id);
+        localStorage.setItem('asap_tables_store', JSON.stringify(filtered));
+      } catch {
+        // Fallback
+      }
+    }
+  }
+  return true;
+}
+

@@ -5,9 +5,10 @@ export interface BadgeProps {
   variant?: 'success' | 'warning' | 'danger' | 'info' | 'stone' | 'amber';
   size?: 'sm' | 'md';
   className?: string;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-export function Badge({ children, variant = 'stone', size = 'md', className = '' }: BadgeProps) {
+export function Badge({ children, variant = 'stone', size = 'md', className = '', onClick }: BadgeProps) {
   const variants = {
     success: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     warning: 'bg-amber-50 text-amber-800 border-amber-200',
@@ -23,7 +24,10 @@ export function Badge({ children, variant = 'stone', size = 'md', className = ''
   };
 
   return (
-    <span className={`inline-flex items-center font-medium rounded-full border ${variants[variant]} ${sizes[size]} ${className}`}>
+    <span
+      onClick={onClick}
+      className={`inline-flex items-center font-medium rounded-full border ${variants[variant]} ${sizes[size]} ${className}`}
+    >
       {children}
     </span>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ShieldCheck, Flame, Clock, Sparkles } from 'lucide-react';
+import { LogOut, ShieldCheck, Flame, Clock, Sparkles, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/lib/supabase/types';
 
@@ -87,7 +87,21 @@ export function AdminHeader() {
 
   return (
     <header className="h-16 bg-white/95 backdrop-blur-md border-b border-stone-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-10 shadow-xs">
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        {/* Mobile Hamburger Menu Button */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('asap:open-mobile-sidebar'));
+            }
+          }}
+          className="p-2 -ml-1 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl md:hidden transition-colors shrink-0"
+          title="Buka Menu Navigasi"
+        >
+          <Menu className="w-5 h-5 text-amber-600" />
+        </button>
+
         <div className="min-w-0">
           <h1 className="text-sm sm:text-base font-bold text-stone-900 tracking-tight truncate">
             {getPageTitle(pathname)}

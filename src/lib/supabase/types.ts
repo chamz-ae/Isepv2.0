@@ -165,6 +165,7 @@ export interface Order {
 
   // Cancellation
   notes?: string | null;
+  operator_name?: string | null;
   cancellation_reason?: string | null;
   cancelled_by?: string | null;
   cancelled_at?: string | null;
@@ -276,6 +277,8 @@ export interface PurchaseItem {
   subtotal: number;
   is_stock_item: boolean;
   notes?: string | null;
+  unit_type?: 'daging' | 'ekor' | 'pcs' | 'pax';
+  quantity?: number;
 }
 
 // 10. Meat & Supplies Inventory (Base unit: GRAM)

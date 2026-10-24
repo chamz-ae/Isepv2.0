@@ -80,6 +80,15 @@ export default function CustomerKamarPage() {
       return;
     }
 
+    // Requirement 2.1: Capacity validation and recommendation
+    if (totalGuests > room.capacity) {
+      const neededRooms = Math.ceil(totalGuests / room.capacity);
+      setValidationError(
+        `Jumlah tamu (${totalGuests} orang) melebihi kapasitas ${room.room_name} (Maks ${room.capacity} orang perkamar). Sistem merekomendasikan memesan minimal ${neededRooms} unit kamar.`
+      );
+      return;
+    }
+
     updateLodgingDates(checkIn, checkOut);
     updateGuestsCount(adultsNum, childrenNum, 0);
     updateLodgingRoom(room);
@@ -272,6 +281,21 @@ export default function CustomerKamarPage() {
                         </span>
                       ))}
                     </div>
+                    {/* Capacity Warning and Recommendation (Requirement 2.1) */}
+                    {totalGuests > room.capacity && (
+                      <div className="p-3 bg-red-950/80 border border-red-500/50 rounded-xl text-red-200 text-xs space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-red-300">
+                          <Users className="w-3.5 h-3.5" />
+                          <span>Melebihi Kapasitas Kabin</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-red-100/90">
+                          Kapasitas kabin ini: <strong>Maks {room.capacity} orang</strong>. Jumlah tamu Anda: <strong>{totalGuests} orang</strong>.
+                        </p>
+                        <div className="text-[11px] font-bold text-amber-300 pt-1 border-t border-red-800/60">
+                          💡 Rekomendasi: Gunakan minimal {Math.ceil(totalGuests / room.capacity)} unit kamar untuk menampung seluruh tamu.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -289,15 +313,19 @@ export default function CustomerKamarPage() {
 
                   <Button
                     onClick={() => handleSelectRoom(room)}
-                    disabled={!isAvailable || isChecking}
-                    variant={isAvailable ? 'primary' : 'outline'}
+                    disabled={!isAvailable || isChecking || totalGuests > room.capacity}
+                    variant={isAvailable && totalGuests <= room.capacity ? 'primary' : 'outline'}
                     className={`w-full py-3 text-xs uppercase tracking-wider font-mono font-bold ${
-                      isAvailable
+                      totalGuests > room.capacity
+                        ? 'border-amber-700 text-amber-300 bg-amber-950/40 cursor-not-allowed'
+                        : isAvailable
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-forest-950 shadow-lg shadow-emerald-950/50'
                         : 'border-red-800 text-red-400 bg-red-950/30 cursor-not-allowed'
                     }`}
                   >
-                    {isAvailable ? (
+                    {totalGuests > room.capacity ? (
+                      <span>Melebihi Kapasitas ({totalGuests}/{room.capacity} Org)</span>
+                    ) : isAvailable ? (
                       <span className="flex items-center justify-center gap-2">
                         <span>Pilih Kabin & Lanjut Pesan</span>
                         <ArrowRight className="w-4 h-4" />

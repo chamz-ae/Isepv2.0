@@ -2,51 +2,22 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, getSavedSession } from '@/context/AuthContext';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Loader2 } from 'lucide-react';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function AdminProtectedShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { profile, isLoading } = useAuth();
-  const [isClientMounted, setIsClientMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Check if session exists in memory, localStorage, or cookie
-  const hasSession =
-    Boolean(profile) ||
-    (typeof window !== 'undefined' &&
-      Boolean(
-        localStorage.getItem('asap_admin_session') ||
-          sessionStorage.getItem('asap_admin_session') ||
-          (typeof document !== 'undefined' && document.cookie.includes('asap_admin_session='))
-      ));
-
-  // Hook 1: Mount tracking
   useEffect(() => {
-    setIsClientMounted(true);
+    setMounted(true);
   }, []);
 
-  // Hook 2: Mandatory Login Guard (MUST be called unconditionally before ANY return)
-  useEffect(() => {
-    if (isClientMounted && !isLoading && !hasSession && pathname !== '/admin/login') {
-      router.replace('/admin/login');
-    }
-  }, [isClientMounted, isLoading, hasSession, pathname, router]);
-
-  // ==============================================================
-  // ALL REACT HOOKS ARE CALLED ABOVE.
-  // CONDITIONAL RENDERING CAN NOW SAFELY OCCUR BELOW.
-  // ==============================================================
-
-  // 1. If on login page, render full screen without sidebar/header
-  if (pathname === '/admin/login') {
-    return <div className="min-h-screen bg-stone-950 text-stone-100">{children}</div>;
-  }
-
-  // 2. Loading state while checking session
-  if (isLoading && !hasSession) {
+  // During SSR and before client hydration, render identical loader HTML to prevent hydration mismatch
+  if (!mounted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-stone-300 select-none">
         <div className="w-12 h-12 rounded-2xl bg-amber-600/20 border border-amber-500/40 flex items-center justify-center mb-4">
@@ -58,12 +29,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // 3. If not logged in and not loading, render null while router.replace takes effect
-  if (isClientMounted && !hasSession && !profile) {
+  // After mount (Client only), check active profile from state or storage
+  const activeProfile = profile || getSavedSession().profile;
+
+  // If unauthenticated, redirect to login
+  if (!activeProfile && !isLoading) {
+    router.replace('/admin/login');
     return null;
   }
 
-  // 4. Authenticated: render complete admin dashboard
+  // Still verifying
+  if (!activeProfile && isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-950 text-stone-300 select-none">
+        <div className="w-12 h-12 rounded-2xl bg-amber-600/20 border border-amber-500/40 flex items-center justify-center mb-4">
+          <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+        </div>
+        <div className="text-sm font-semibold text-white tracking-wide">Memverifikasi Otentikasi Admin</div>
+        <p className="text-xs text-stone-500 mt-1">Memeriksa izin sesi staf operasional...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-stone-100 text-stone-900 font-sans">
       <AdminSidebar />
@@ -75,4 +62,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     </div>
   );
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // If on login page, render full screen without shell, guard, or sidebar
+  if (pathname === '/admin/login') {
+    return <div className="min-h-screen bg-stone-950 text-stone-100">{children}</div>;
+  }
+
+  // Any other admin page is strictly protected
+  return <AdminProtectedShell>{children}</AdminProtectedShell>;
 }

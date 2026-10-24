@@ -14,6 +14,7 @@ import { generateBookingCode, generatePaymentNumber } from '@/lib/utils/formatte
 import { findOrCreateGuest, updateGuestVisitStats } from './guestService';
 import { checkRoomDateAvailability } from './roomService';
 import { getInventoryItems } from './inventoryService';
+import { dispatchOrderWebhook } from './webhookService';
 
 export async function getOrders(options?: {
   status?: OrderStatus;
@@ -323,6 +324,9 @@ export async function createOrder(params: {
           await updateGuestVisitStats(guest.id, paidAmount);
         }
 
+        // Realtime webhook trigger to Google Sheets / Excel
+        dispatchOrderWebhook(savedOrder as Order, savedOrder.order_type === 'restaurant' ? 'restaurant_order' : 'lodging_order');
+
         return savedOrder as Order;
       }
     } catch (err) {
@@ -339,6 +343,9 @@ export async function createOrder(params: {
     }
     window.dispatchEvent(new Event('asap_orders_updated'));
   }
+
+  // Realtime webhook trigger to Google Sheets / Excel (local / fallback)
+  dispatchOrderWebhook(orderRecord, orderRecord.order_type === 'restaurant' ? 'restaurant_order' : 'lodging_order');
 
   return orderRecord;
 }

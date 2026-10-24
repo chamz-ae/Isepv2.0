@@ -48,7 +48,31 @@ export default function AdminPesananPenginapanPage() {
       ]);
       setRooms(rList);
       setLodgingMenus(mList);
-      if (rList.length > 0) setSelectedRoomId(rList[0].id);
+
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const qName = params.get('guestName');
+        const qPhone = params.get('guestPhone');
+        const qEmail = params.get('guestEmail');
+        const qRoomId = params.get('roomId');
+        const qDate = params.get('date') || params.get('checkInDate');
+        if (qName) setGuestName(qName);
+        if (qPhone) setGuestPhone(qPhone);
+        if (qEmail) setGuestEmail(qEmail);
+        if (qRoomId) {
+          setSelectedRoomId(qRoomId);
+        } else if (rList.length > 0) {
+          setSelectedRoomId(rList[0].id);
+        }
+        if (qDate) {
+          setCheckInDate(qDate);
+          const nextDay = new Date(qDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          setCheckOutDate(nextDay.toISOString().slice(0, 10));
+        }
+      } else if (rList.length > 0) {
+        setSelectedRoomId(rList[0].id);
+      }
     }
     init();
   }, []);
@@ -107,6 +131,14 @@ export default function AdminPesananPenginapanPage() {
       }
 
       const room = rooms.find((r) => r.id === selectedRoomId);
+      if (room && totalGuests > room.capacity) {
+        const neededRooms = Math.ceil(totalGuests / room.capacity);
+        alert(
+          `Kapasitas Melebihi Batas!\n\nJumlah tamu (${totalGuests} orang) melebihi kapasitas ${room.room_name} (Maks ${room.capacity} orang perkamar).\n\nRekomendasi Sistem: Dibutuhkan minimal ${neededRooms} unit kamar untuk menampung ${totalGuests} orang tamu.`
+        );
+        setIsSubmitting(false);
+        return;
+      }
 
       const created = await createOrder({
         guestName,
@@ -256,6 +288,29 @@ export default function AdminPesananPenginapanPage() {
             </span>
             <span className="text-sm font-bold">{formatRupiah(lodgingSubtotal)}</span>
           </div>
+
+          {/* Capacity Validation & Recommendation Warning (Requirement 2.1) */}
+          {(() => {
+            const currentRoom = rooms.find((r) => r.id === selectedRoomId);
+            if (currentRoom && totalGuests > currentRoom.capacity) {
+              const neededRooms = Math.ceil(totalGuests / currentRoom.capacity);
+              return (
+                <div className="mt-4 p-4 bg-red-50 border border-red-300 rounded-xl text-xs text-red-900 space-y-2">
+                  <div className="font-bold flex items-center gap-2 text-red-700 text-sm">
+                    <Users className="w-4 h-4 text-red-600" />
+                    <span>Jumlah Tamu Melebihi Kapasitas Kamar ({totalGuests} / Maks {currentRoom.capacity} Orang)</span>
+                  </div>
+                  <p className="text-red-800 leading-relaxed">
+                    Kamar <strong>{currentRoom.room_number} — {currentRoom.room_name}</strong> hanya memiliki kapasitas maksimal <strong>{currentRoom.capacity} orang</strong>. Tamu yang Anda masukkan ({totalGuests} orang) tidak dapat ditampung dalam 1 kamar ini.
+                  </p>
+                  <div className="p-2.5 bg-red-100/70 border border-red-200 rounded-lg font-bold text-red-900">
+                    💡 Rekomendasi Sistem: Untuk menampung {totalGuests} orang tamu dengan kapasitas {currentRoom.capacity} orang perkamar, Anda disarankan memesan minimal <strong>{neededRooms} unit kamar kabin</strong>.
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </Card>
 
         {/* Lodging Menus (Optional Pre-ordered Meals) */}
@@ -333,8 +388,23 @@ export default function AdminPesananPenginapanPage() {
                 DP Dicatat: {formatRupiah(downPayment)} • Sisa Pelunasan: {formatRupiah(Math.max(0, grandTotal - downPayment))}
               </div>
             </div>
-            <Button type="submit" variant="amber" size="lg" isLoading={isSubmitting}>
-              Simpan Reservasi Kabin
+            <Button
+              type="submit"
+              variant="amber"
+              size="lg"
+              isLoading={isSubmitting}
+              disabled={(() => {
+                const currentRoom = rooms.find((r) => r.id === selectedRoomId);
+                return !!(currentRoom && totalGuests > currentRoom.capacity);
+              })()}
+            >
+              {(() => {
+                const currentRoom = rooms.find((r) => r.id === selectedRoomId);
+                if (currentRoom && totalGuests > currentRoom.capacity) {
+                  return `Melebihi Kapasitas (${totalGuests}/${currentRoom.capacity} Org)`;
+                }
+                return 'Simpan Reservasi Kabin';
+              })()}
             </Button>
           </div>
         </Card>

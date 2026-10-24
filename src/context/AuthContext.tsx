@@ -21,54 +21,70 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to synchronously read saved session from storage or cookie
+export function getSavedSession(): { profile: Profile | null; role: UserRole } {
+  if (typeof window === 'undefined') {
+    return { profile: null, role: 'owner' };
+  }
+
+  try {
+    let saved =
+      sessionStorage.getItem('asap_admin_session') ||
+      localStorage.getItem('asap_admin_session');
+
+    if (!saved && typeof document !== 'undefined') {
+      const match = document.cookie.match(/asap_admin_session=([^;]+)/);
+      if (match) {
+        saved = decodeURIComponent(match[1]);
+      }
+    }
+
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.role) {
+        const parsedRole = parsed.role as UserRole;
+        const prof: Profile = {
+          id: parsed.id || '00000000-0000-0000-0000-000000000001',
+          full_name: parsed.full_name || `${parsedRole.toUpperCase()} Operator`,
+          role: parsedRole,
+          is_active: true,
+          created_at: parsed.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        return { profile: prof, role: parsedRole };
+      }
+    }
+  } catch (e) {
+    console.warn('Initial session parse error:', e);
+  }
+
+  return { profile: null, role: 'owner' };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<UserRole>('owner');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const configured = isSupabaseConfigured();
 
   const supabase = createClient();
 
   useEffect(() => {
-    const restoreLocalSession = () => {
-      try {
-        const savedSession =
-          sessionStorage.getItem('asap_admin_session') ||
-          localStorage.getItem('asap_admin_session');
-        if (savedSession) {
-          const parsed = JSON.parse(savedSession);
-          if (parsed && parsed.role) {
-            const parsedRole = parsed.role as UserRole;
-            setRole(parsedRole);
-            setProfile({
-              id: parsed.id || '00000000-0000-0000-0000-000000000001',
-              full_name: parsed.full_name || `${parsedRole.toUpperCase()} Operator`,
-              role: parsedRole,
-              is_active: true,
-              created_at: parsed.created_at || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-            setUser({
-              id: parsed.id || 'admin-local-user',
-              email: parsed.email || `${parsedRole}@asapisep.com`,
-            });
-            return true;
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to parse local admin session:', e);
-      }
-      return false;
-    };
+    // 1. Immediately restore local session if present
+    const saved = getSavedSession();
+    if (saved.profile) {
+      setProfile(saved.profile);
+      setRole(saved.role);
+      setUser({ id: saved.profile.id, email: `${saved.role}@asapisep.com` });
+    }
 
     if (!configured) {
-      restoreLocalSession();
       setIsLoading(false);
       return;
     }
 
-    // Supabase is configured: fetch session, fallback to local admin session
+    // 2. If Supabase configured, check remote auth session
     const fetchSession = async () => {
       try {
         const {
@@ -98,17 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               updated_at: new Date().toISOString(),
             });
           }
-        } else {
-          // If no Supabase user session active, check if local staff session was saved
-          const restored = restoreLocalSession();
-          if (!restored) {
-            setUser(null);
-            setProfile(null);
-          }
         }
       } catch (err) {
-        console.error('Auth initialization error:', err);
-        restoreLocalSession();
+        console.warn('Supabase remote session check error:', err);
       } finally {
         setIsLoading(false);
       }
@@ -148,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanPass = (password || '').trim();
 
     if (!cleanUser) {
-      return { error: 'Username atau Email operator wajib diisi.' };
+      return { error: 'Email akun owner wajib diisi.' };
     }
     if (!cleanPass) {
       return { error: 'Kata sandi wajib diisi.' };
@@ -157,33 +165,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: 'Kata sandi minimal 3 karakter.' };
     }
 
-    // Determine target role: prioritize user selection, fallback to username heuristics
-    let targetRole: UserRole = selectedRole || 'owner';
-    if (!selectedRole) {
-      if (cleanUser.includes('owner')) targetRole = 'owner';
-      else if (cleanUser.includes('admin')) targetRole = 'admin';
-      else if (cleanUser.includes('kasir') || cleanUser.includes('pos')) targetRole = 'kasir';
-      else if (cleanUser.includes('kitchen') || cleanUser.includes('kds') || cleanUser.includes('dapur'))
-        targetRole = 'kitchen';
-      else if (cleanUser.includes('purchasing') || cleanUser.includes('belanja'))
-        targetRole = 'purchasing';
-      else if (cleanUser.includes('housekeeping') || cleanUser.includes('kamar'))
-        targetRole = 'housekeeping';
-      else targetRole = 'owner';
-    }
+    // Role is strictly 'owner'
+    const targetRole: UserRole = 'owner';
+    const displayName = 'Owner ASAP ISEP';
 
-    const roleDisplayNames: Record<UserRole, string> = {
-      owner: 'Owner ASAP ISEP',
-      admin: 'Administrator Operasional',
-      kasir: 'Kasir & Front Office',
-      kitchen: 'Kitchen & Smokehouse Chef',
-      purchasing: 'Staff Purchasing',
-      housekeeping: 'Staff Housekeeping',
+    const persistSession = (sessionObj: any) => {
+      setRole('owner');
+      setProfile({
+        id: sessionObj.id,
+        full_name: sessionObj.full_name || displayName,
+        role: 'owner',
+        is_active: true,
+        created_at: sessionObj.created_at,
+        updated_at: new Date().toISOString(),
+      });
+      setUser({ id: sessionObj.id, email: sessionObj.email });
+
+      const json = JSON.stringify(sessionObj);
+      sessionStorage.setItem('asap_admin_session', json);
+      localStorage.setItem('asap_admin_session', json);
+      localStorage.setItem('asap_demo_role', 'owner');
+
+      if (typeof document !== 'undefined') {
+        document.cookie = `asap_admin_session=${encodeURIComponent(
+          json
+        )}; path=/; max-age=604800; SameSite=Lax`;
+      }
     };
 
-    const displayName = roleDisplayNames[targetRole] || 'Operator ASAP ISEP';
-
-    // If Supabase is configured, try Supabase Auth first
+    // If Supabase is configured, authenticate via Supabase Auth
     if (configured) {
       try {
         const emailToUse = cleanUser.includes('@') ? cleanUser : `${cleanUser}@asapisep.com`;
@@ -192,72 +202,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password: cleanPass,
         });
 
-        if (!error && data?.user) {
-          // Supabase login success
+        if (error) {
+          const errMsg = error.message.toLowerCase();
+          if (errMsg.includes('invalid login credentials') || errMsg.includes('invalid credentials')) {
+            return { error: 'Email atau kata sandi tidak cocok dengan akun terdaftar di Supabase.' };
+          }
+          if (errMsg.includes('email not confirmed')) {
+            return { error: 'Email belum dikonfirmasi di Supabase. Silakan cek kotak masuk email Anda.' };
+          }
+          return { error: error.message };
+        }
+
+        if (data?.user) {
           const { data: prof } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
             .single();
 
-          const finalRole = (prof?.role as UserRole) || targetRole;
-          setRole(finalRole);
-          setProfile(
-            prof || {
-              id: data.user.id,
-              full_name: data.user.user_metadata?.full_name || displayName,
-              role: finalRole,
-              is_active: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          );
-          setUser(data.user);
-
           const sessionObj = {
             id: data.user.id,
-            full_name: prof?.full_name || displayName,
-            role: finalRole,
-            email: emailToUse,
+            full_name: prof?.full_name || data.user.user_metadata?.full_name || displayName,
+            role: 'owner' as UserRole,
+            email: data.user.email || emailToUse,
             created_at: new Date().toISOString(),
           };
-          sessionStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
-          localStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
-          localStorage.setItem('asap_demo_role', finalRole);
 
-          return { role: finalRole };
+          persistSession(sessionObj);
+          return { role: 'owner' };
         }
-      } catch (err) {
-        console.warn('Supabase remote sign in bypassed, falling back to local staff role session:', err);
+      } catch (err: any) {
+        console.warn('Supabase remote sign in error:', err);
+        // If offline dev environment (network fetch failed / no internet access), allow fallback for local development:
+        if (
+          err?.message?.includes('fetch failed') ||
+          err?.name === 'AuthRetryableFetchError' ||
+          (typeof window !== 'undefined' && !window.navigator.onLine)
+        ) {
+          const sessionObj = {
+            id: '00000000-0000-0000-0000-000000000001',
+            full_name: 'Owner ASAP ISEP (Offline/Dev)',
+            email: cleanUser.includes('@') ? cleanUser : `${cleanUser}@asapisep.com`,
+            role: 'owner' as UserRole,
+            created_at: new Date().toISOString(),
+          };
+          persistSession(sessionObj);
+          return { role: 'owner' };
+        }
+        return { error: err.message || 'Gagal menghubungi server Supabase.' };
       }
     }
 
-    // Operator Staff Session:
-    // If Supabase user is not yet created or local testing, grant session with the explicitly selected role
+    // Fallback if Supabase credentials are not configured:
     const sessionObj = {
       id: '00000000-0000-0000-0000-000000000001',
       full_name: displayName,
       email: cleanUser.includes('@') ? cleanUser : `${cleanUser}@asapisep.com`,
-      role: targetRole,
+      role: 'owner' as UserRole,
       created_at: new Date().toISOString(),
     };
 
-    setRole(targetRole);
-    setProfile({
-      id: sessionObj.id,
-      full_name: displayName,
-      role: targetRole,
-      is_active: true,
-      created_at: sessionObj.created_at,
-      updated_at: new Date().toISOString(),
-    });
-    setUser({ id: sessionObj.id, email: sessionObj.email });
-
-    sessionStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
-    localStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
-    localStorage.setItem('asap_demo_role', targetRole);
-
-    return { role: targetRole };
+    persistSession(sessionObj);
+    return { role: 'owner' };
   };
 
   const signOut = async () => {
@@ -273,6 +279,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem('asap_admin_session');
     localStorage.removeItem('asap_admin_session');
     localStorage.removeItem('asap_demo_role');
+
+    if (typeof document !== 'undefined') {
+      document.cookie = 'asap_admin_session=; path=/; max-age=0';
+    }
   };
 
   const setDemoRole = (newRole: UserRole) => {
@@ -292,8 +302,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: `${newRole}@asapisep.com`,
         created_at: profile.created_at,
       };
-      sessionStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
-      localStorage.setItem('asap_admin_session', JSON.stringify(sessionObj));
+      const json = JSON.stringify(sessionObj);
+      sessionStorage.setItem('asap_admin_session', json);
+      localStorage.setItem('asap_admin_session', json);
+
+      if (typeof document !== 'undefined') {
+        document.cookie = `asap_admin_session=${encodeURIComponent(
+          json
+        )}; path=/; max-age=604800; SameSite=Lax`;
+      }
     }
   };
 

@@ -1,13 +1,13 @@
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { WebhookIntegration, WebhookLog } from '@/lib/supabase/types';
+import { WebhookIntegration, WebhookLog, Order } from '@/lib/supabase/types';
 
 export const INITIAL_WEBHOOKS: WebhookIntegration[] = [
   {
     id: 'wh_001',
-    label: 'Google Sheets — Rekap Transaksi Restoran',
+    label: 'Google Sheets — Rekap Transaksi Restoran & Inap',
     webhook_url: 'https://script.google.com/macros/s/AKfycbz_sample_endpoint_resto/exec',
     secret_token: 'asap_secret_tok_1',
-    trigger_events: ['restaurant_paid', 'lodging_paid'],
+    trigger_events: ['restaurant_paid', 'lodging_paid', 'all', 'order_created'],
     is_active: true,
     last_status_code: 200,
     last_delivery_at: new Date().toISOString(),
@@ -109,5 +109,64 @@ export async function testWebhookDelivery(webhook: WebhookIntegration): Promise<
     return result;
   } catch (err: any) {
     return { success: false, statusCode: 500, message: err.message || 'Koneksi gagal' };
+  }
+}
+
+/**
+ * Dispatches order payload to all active webhooks for Google Sheets / Excel realtime updates
+ */
+export async function dispatchOrderWebhook(
+  order: Order,
+  eventName: string = 'order_created'
+): Promise<void> {
+  try {
+    const activeWebhooks = (await getWebhooks()).filter((w) => w.is_active && w.webhook_url);
+    if (activeWebhooks.length === 0) return;
+
+    const payload = {
+      event: eventName,
+      timestamp: new Date().toISOString(),
+      booking_code: order.booking_code,
+      order_type: order.order_type,
+      guest_name: order.guest_name,
+      guest_phone: order.guest_phone,
+      guest_email: order.guest_email || '-',
+      check_in_date: order.check_in_date || '-',
+      check_out_date: order.check_out_date || '-',
+      room_name: order.room_name_snapshot || '-',
+      table_number: order.table_number_snapshot || '-',
+      total_guests: (order.adult_count || 1) + (order.teen_count || 0) + (order.child_count || 0),
+      total_amount: order.total_amount,
+      paid_amount: order.paid_amount,
+      remaining_amount: order.remaining_amount,
+      payment_status: order.payment_status,
+      order_status: order.order_status,
+      items_summary:
+        order.order_items && order.order_items.length > 0
+          ? order.order_items.map((i) => `${i.menu_name_snapshot} (${i.qty}x)`).join(', ')
+          : '-',
+      notes: order.notes || '-',
+    };
+
+    // Dispatch concurrently in the background
+    await Promise.allSettled(
+      activeWebhooks.map(async (wh) => {
+        try {
+          await fetch('/api/webhooks/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: wh.webhook_url,
+              secret: wh.secret_token,
+              payload,
+            }),
+          });
+        } catch (e) {
+          console.warn(`Failed to dispatch webhook ${wh.id}:`, e);
+        }
+      })
+    );
+  } catch (err) {
+    console.warn('Webhook dispatch error:', err);
   }
 }

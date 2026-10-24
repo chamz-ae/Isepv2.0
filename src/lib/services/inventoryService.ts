@@ -371,3 +371,85 @@ export async function saveStockOpname(params: {
 
   return opnameRecord;
 }
+
+function isValidUUID(id?: string | null): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+export async function deductStockManual(params: {
+  inventoryId: string;
+  gramDeduction: number;
+  reason: string;
+  operatorName: string;
+  date?: string;
+  notes?: string;
+}): Promise<{ success: boolean; newStockGram: number; item: InventoryItem; movement: StockMovement }> {
+  if (!params.inventoryId) throw new Error('Pilih item daging/inventori yang ingin dikurangi');
+  if (params.gramDeduction <= 0) throw new Error('Jumlah potongan stok harus lebih dari 0 gram');
+
+  const configured = isSupabaseConfigured();
+  const allItems = await getInventoryItems();
+  const targetItem = allItems.find((i) => i.id === params.inventoryId);
+  if (!targetItem) throw new Error('Item inventori tidak ditemukan');
+
+  if (targetItem.stock_gram < params.gramDeduction) {
+    throw new Error(
+      `Saldo stok ${targetItem.item_name} tidak mencukupi. Tersedia: ${targetItem.stock_gram}g (${(targetItem.stock_gram / 1000).toFixed(2)} kg), pemotongan diminta: ${params.gramDeduction}g (${(params.gramDeduction / 1000).toFixed(2)} kg)`
+    );
+  }
+
+  const newStock = targetItem.stock_gram - params.gramDeduction;
+  const movementId = 'sm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  const nowIso = new Date().toISOString();
+
+  const movementRecord: StockMovement = {
+    id: movementId,
+    inventory_id: targetItem.id,
+    movement_type: 'operational_loss',
+    gram_change: -params.gramDeduction,
+    remaining_gram: newStock,
+    reference_type: 'manual_event_deduction',
+    reference_id: 'event_' + Date.now(),
+    notes: `Potong Stok Acara/Event: ${params.reason}${params.notes ? ` (${params.notes})` : ''}`,
+    operator_name: params.operatorName || 'Petugas Dapur',
+    created_at: nowIso,
+  };
+
+  // 1. Supabase sync
+  if (configured && isValidUUID(targetItem.id)) {
+    try {
+      const supabase = createClient();
+      await supabase.from('inventory').update({ stock_gram: newStock, updated_at: nowIso }).eq('id', targetItem.id);
+      await supabase.from('stock_movements').insert({
+        inventory_id: targetItem.id,
+        movement_type: 'operational_loss',
+        gram_change: -params.gramDeduction,
+        remaining_gram: newStock,
+        reference_type: 'manual_event_deduction',
+        reference_id: movementRecord.reference_id,
+        notes: movementRecord.notes,
+        operator_name: movementRecord.operator_name,
+      });
+    } catch (err) {
+      console.warn('Supabase deductStockManual fallback to local:', err);
+    }
+  }
+
+  // 2. Local storage sync
+  const updatedItems = allItems.map((i) => (i.id === targetItem.id ? { ...i, stock_gram: newStock, updated_at: nowIso } : i));
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('asap_inventory_store', JSON.stringify(updatedItems));
+    const existingMovs: StockMovement[] = JSON.parse(localStorage.getItem('asap_stock_movements_store') || '[]');
+    localStorage.setItem('asap_stock_movements_store', JSON.stringify([movementRecord, ...existingMovs]));
+    window.dispatchEvent(new Event('asap_inventory_updated'));
+  }
+
+  return {
+    success: true,
+    newStockGram: newStock,
+    item: { ...targetItem, stock_gram: newStock },
+    movement: movementRecord,
+  };
+}
+

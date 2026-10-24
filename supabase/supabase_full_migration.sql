@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- MIGRATION 0001: INITIAL SCHEMA & EXTENSIONS
 -- ASAP ISEP â€” Daging Asap
 -- ============================================================
@@ -582,14 +582,52 @@ ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Staff manage suppliers" ON public.suppliers;
 CREATE POLICY "Staff manage suppliers" ON public.suppliers FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Public select suppliers" ON public.suppliers;
+CREATE POLICY "Public select suppliers" ON public.suppliers FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public insert suppliers" ON public.suppliers;
+CREATE POLICY "Public insert suppliers" ON public.suppliers FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public update suppliers" ON public.suppliers;
+CREATE POLICY "Public update suppliers" ON public.suppliers FOR UPDATE USING (TRUE);
+
 DROP POLICY IF EXISTS "Staff manage inventory" ON public.inventory;
 CREATE POLICY "Staff manage inventory" ON public.inventory FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Public select inventory" ON public.inventory;
+CREATE POLICY "Public select inventory" ON public.inventory FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public insert inventory" ON public.inventory;
+CREATE POLICY "Public insert inventory" ON public.inventory FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public update inventory" ON public.inventory;
+CREATE POLICY "Public update inventory" ON public.inventory FOR UPDATE USING (TRUE);
+
 DROP POLICY IF EXISTS "Staff manage purchases" ON public.purchases;
 CREATE POLICY "Staff manage purchases" ON public.purchases FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Public select purchases" ON public.purchases;
+CREATE POLICY "Public select purchases" ON public.purchases FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public insert purchases" ON public.purchases;
+CREATE POLICY "Public insert purchases" ON public.purchases FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public update purchases" ON public.purchases;
+CREATE POLICY "Public update purchases" ON public.purchases FOR UPDATE USING (TRUE);
+DROP POLICY IF EXISTS "Public delete purchases" ON public.purchases;
+CREATE POLICY "Public delete purchases" ON public.purchases FOR DELETE USING (TRUE);
+
 DROP POLICY IF EXISTS "Staff manage purchase_items" ON public.purchase_items;
 CREATE POLICY "Staff manage purchase_items" ON public.purchase_items FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Public select purchase_items" ON public.purchase_items;
+CREATE POLICY "Public select purchase_items" ON public.purchase_items FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public insert purchase_items" ON public.purchase_items;
+CREATE POLICY "Public insert purchase_items" ON public.purchase_items FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public update purchase_items" ON public.purchase_items;
+CREATE POLICY "Public update purchase_items" ON public.purchase_items FOR UPDATE USING (TRUE);
+DROP POLICY IF EXISTS "Public delete purchase_items" ON public.purchase_items;
+CREATE POLICY "Public delete purchase_items" ON public.purchase_items FOR DELETE USING (TRUE);
+
 DROP POLICY IF EXISTS "Staff manage stock_movements" ON public.stock_movements;
 CREATE POLICY "Staff manage stock_movements" ON public.stock_movements FOR ALL TO authenticated USING (public.is_staff());
+DROP POLICY IF EXISTS "Public select stock_movements" ON public.stock_movements;
+CREATE POLICY "Public select stock_movements" ON public.stock_movements FOR SELECT USING (TRUE);
+DROP POLICY IF EXISTS "Public insert stock_movements" ON public.stock_movements;
+CREATE POLICY "Public insert stock_movements" ON public.stock_movements FOR INSERT WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Public update stock_movements" ON public.stock_movements;
+CREATE POLICY "Public update stock_movements" ON public.stock_movements FOR UPDATE USING (TRUE);
 -- ============================================================
 -- MIGRATION 0006: COOKING BATCH, YIELD & STOCK OPNAME
 -- ASAP ISEP â€” Daging Asap
