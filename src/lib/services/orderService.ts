@@ -11,7 +11,7 @@ import {
   StockMovement,
 } from '@/lib/supabase/types';
 import { generateBookingCode, generatePaymentNumber } from '@/lib/utils/formatters';
-import { findOrCreateGuest, updateGuestVisitStats } from './guestService';
+import { findOrCreateGuest, updateGuestVisitStats, isValidUuid, generateUuid } from './guestService';
 import { checkRoomDateAvailability } from './roomService';
 import { getInventoryItems } from './inventoryService';
 import { dispatchOrderWebhook } from './webhookService';
@@ -22,6 +22,7 @@ export async function getOrders(options?: {
   paymentStatus?: PaymentStatus;
   searchQuery?: string;
 }): Promise<Order[]> {
+  let supabaseOrders: Order[] = [];
   const configured = isSupabaseConfigured();
 
   if (configured) {
@@ -38,41 +39,56 @@ export async function getOrders(options?: {
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
-      if (!error && data) return data as Order[];
+      if (!error && data) {
+        supabaseOrders = data as Order[];
+      }
     } catch {
       // Fallback
     }
   }
 
-  // Local storage fallback
+  // Local storage fallback and merge
+  let localOrders: Order[] = [];
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('asap_orders_store');
     if (stored) {
       try {
-        let list: Order[] = JSON.parse(stored);
-        if (options?.status) list = list.filter((o) => o.order_status === options.status);
-        if (options?.type) list = list.filter((o) => o.order_type === options.type);
-        if (options?.paymentStatus) list = list.filter((o) => o.payment_status === options.paymentStatus);
-        if (options?.searchQuery && options.searchQuery.trim()) {
-          const q = options.searchQuery.toLowerCase().trim();
-          list = list.filter(
-            (o) =>
-              o.booking_code.toLowerCase().includes(q) ||
-              o.guest_name.toLowerCase().includes(q) ||
-              o.guest_phone.includes(q)
-          );
-        }
-        return list;
+        localOrders = JSON.parse(stored);
       } catch {
         // Fallback
       }
     }
   }
 
-  return [];
+  let combined: Order[] = [];
+  if (supabaseOrders.length > 0) {
+    const supabaseCodes = new Set(supabaseOrders.map((o) => (o.booking_code || '').toUpperCase()));
+    const pendingLocal = localOrders.filter(
+      (lo) => lo.booking_code && !supabaseCodes.has(lo.booking_code.toUpperCase())
+    );
+    combined = [...supabaseOrders, ...pendingLocal];
+  } else {
+    combined = localOrders;
+  }
+
+  if (options?.status) combined = combined.filter((o) => o.order_status === options.status);
+  if (options?.type) combined = combined.filter((o) => o.order_type === options.type);
+  if (options?.paymentStatus) combined = combined.filter((o) => o.payment_status === options.paymentStatus);
+  if (options?.searchQuery && options.searchQuery.trim()) {
+    const q = options.searchQuery.toLowerCase().trim();
+    combined = combined.filter(
+      (o) =>
+        (o.booking_code && o.booking_code.toLowerCase().includes(q)) ||
+        (o.guest_name && o.guest_name.toLowerCase().includes(q)) ||
+        (o.guest_phone && o.guest_phone.includes(q))
+    );
+  }
+
+  return combined;
 }
 
 export async function getOrderByBookingCode(bookingCode: string): Promise<Order | null> {
+  if (!bookingCode) return null;
   const code = bookingCode.trim().toUpperCase();
   const configured = isSupabaseConfigured();
 
@@ -90,8 +106,22 @@ export async function getOrderByBookingCode(bookingCode: string): Promise<Order 
     }
   }
 
+  // Fast check directly in localStorage
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('asap_orders_store');
+    if (stored) {
+      try {
+        const localOrders: Order[] = JSON.parse(stored);
+        const match = localOrders.find((o) => o.booking_code && o.booking_code.toUpperCase() === code);
+        if (match) return match;
+      } catch {
+        // Fallback
+      }
+    }
+  }
+
   const all = await getOrders();
-  return all.find((o) => o.booking_code.toUpperCase() === code) || null;
+  return all.find((o) => o.booking_code && o.booking_code.toUpperCase() === code) || null;
 }
 
 export async function createOrder(params: {
@@ -179,7 +209,7 @@ export async function createOrder(params: {
   const orderStatus: OrderStatus = paidAmount > 0 ? 'confirmed' : 'pending';
 
   const orderRecord: Order = {
-    id: 'ord_' + Date.now(),
+    id: generateUuid(),
     booking_code: bookingCode,
     guest_id: guest.id,
     guest_name: params.guestName.trim(),
@@ -214,7 +244,7 @@ export async function createOrder(params: {
     updated_at: new Date().toISOString(),
 
     order_items: params.items.map((it) => ({
-      id: 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      id: generateUuid(),
       order_id: '',
       menu_id: it.menuId || null,
       menu_name_snapshot: it.menuName,
@@ -237,7 +267,7 @@ export async function createOrder(params: {
   // If initial payment was made
   if (paidAmount > 0) {
     const paymentRecord: Payment = {
-      id: 'pay_' + Date.now(),
+      id: generateUuid(),
       payment_number: generatePaymentNumber(),
       order_id: orderRecord.id,
       amount: paidAmount,
@@ -252,21 +282,29 @@ export async function createOrder(params: {
     orderRecord.payments = [paymentRecord];
   }
 
+  // Deduct meat stock live for ordered items
+  await deductMeatStockLive(params.items, bookingCode, params.operatorName || 'Pemesanan Pelanggan');
+
   const configured = isSupabaseConfigured();
 
   if (configured) {
     try {
       const supabase = createClient();
+      const guestIdForSupabase = isValidUuid(guest?.id) ? guest.id : null;
+      const roomIdForSupabase = isValidUuid(orderRecord.room_id) ? orderRecord.room_id : null;
+      const tableIdForSupabase = isValidUuid(orderRecord.table_id) ? orderRecord.table_id : null;
+
       const { data: savedOrder, error } = await supabase
         .from('orders')
         .insert({
+          id: orderRecord.id,
           booking_code: bookingCode,
-          guest_id: guest.id,
+          guest_id: guestIdForSupabase,
           guest_name: orderRecord.guest_name,
           guest_phone: orderRecord.guest_phone,
           guest_email: orderRecord.guest_email,
           order_type: orderRecord.order_type,
-          room_id: orderRecord.room_id,
+          room_id: roomIdForSupabase,
           room_name_snapshot: orderRecord.room_name_snapshot,
           check_in_date: orderRecord.check_in_date,
           check_out_date: orderRecord.check_out_date,
@@ -275,7 +313,7 @@ export async function createOrder(params: {
           child_count: childCount,
           lodging_price_per_person_snapshot: pricePerPerson,
           subtotal_lodging: subtotalLodging,
-          table_id: orderRecord.table_id,
+          table_id: tableIdForSupabase,
           table_number_snapshot: orderRecord.table_number_snapshot,
           subtotal_dining: subtotalDining,
           total_amount: totalAmount,
@@ -292,8 +330,9 @@ export async function createOrder(params: {
       if (!error && savedOrder) {
         if (orderRecord.order_items && orderRecord.order_items.length > 0) {
           const itemsPayload = orderRecord.order_items.map((oi) => ({
+            id: oi.id,
             order_id: savedOrder.id,
-            menu_id: oi.menu_id,
+            menu_id: isValidUuid(oi.menu_id) ? oi.menu_id : null,
             menu_name_snapshot: oi.menu_name_snapshot,
             unit_price_snapshot: oi.unit_price_snapshot,
             meat_type: oi.meat_type,
@@ -303,7 +342,7 @@ export async function createOrder(params: {
             subtotal: oi.subtotal,
             kds_status: 'pending',
             kds_notes: oi.kds_notes,
-            inventory_deducted: false,
+            inventory_deducted: true,
           }));
           await supabase.from('order_items').insert(itemsPayload);
         }
@@ -311,6 +350,7 @@ export async function createOrder(params: {
         if (paidAmount > 0 && orderRecord.payments?.[0]) {
           const p = orderRecord.payments[0];
           await supabase.from('payments').insert({
+            id: p.id,
             payment_number: p.payment_number,
             order_id: savedOrder.id,
             amount: p.amount,
@@ -321,13 +361,25 @@ export async function createOrder(params: {
             operator_name: p.operator_name,
             paid_at: p.paid_at,
           });
-          await updateGuestVisitStats(guest.id, paidAmount);
+          if (guestIdForSupabase) {
+            await updateGuestVisitStats(guestIdForSupabase, paidAmount);
+          }
         }
 
         // Realtime webhook trigger to Google Sheets / Excel
-        dispatchOrderWebhook(savedOrder as Order, savedOrder.order_type === 'restaurant' ? 'restaurant_order' : 'lodging_order');
+        dispatchOrderWebhook({ ...orderRecord, ...savedOrder }, savedOrder.order_type === 'restaurant' ? 'restaurant_order' : 'lodging_order');
 
-        return savedOrder as Order;
+        // Keep local storage synced as well
+        if (typeof window !== 'undefined') {
+          const existing: Order[] = JSON.parse(localStorage.getItem('asap_orders_store') || '[]');
+          const fullSaved = { ...orderRecord, ...savedOrder };
+          localStorage.setItem('asap_orders_store', JSON.stringify([fullSaved, ...existing.filter((o) => o.id !== savedOrder.id)]));
+          window.dispatchEvent(new Event('asap_orders_updated'));
+        }
+
+        return { ...orderRecord, ...savedOrder } as Order;
+      } else if (error) {
+        console.warn('Supabase insert order returned error:', error);
       }
     } catch (err) {
       console.error('Error inserting order in supabase:', err);
@@ -348,6 +400,74 @@ export async function createOrder(params: {
   dispatchOrderWebhook(orderRecord, orderRecord.order_type === 'restaurant' ? 'restaurant_order' : 'lodging_order');
 
   return orderRecord;
+}
+
+// Live meat stock deduction helper
+async function deductMeatStockLive(
+  items: { meatType: MeatType; qty: number; gramPerPortion: number; subtotal: number }[],
+  bookingCode: string,
+  operatorName: string
+) {
+  try {
+    const meatItems = items.filter((it) => it.meatType && it.meatType !== 'none');
+    if (meatItems.length === 0) return;
+
+    const allInv = await getInventoryItems();
+    const configured = isSupabaseConfigured();
+    const updatedInv = [...allInv];
+    const newMovements: StockMovement[] = [];
+    const nowIso = new Date().toISOString();
+
+    for (const it of meatItems) {
+      const totalGramToDeduct = (it.gramPerPortion > 0 ? it.gramPerPortion : 100) * (it.qty || 1);
+      const idx = updatedInv.findIndex((inv) => inv.meat_type === it.meatType && inv.category === 'cooked_meat');
+      if (idx >= 0) {
+        const inv = updatedInv[idx];
+        const newStock = Math.max(0, inv.stock_gram - totalGramToDeduct);
+        updatedInv[idx] = { ...inv, stock_gram: newStock, updated_at: nowIso };
+
+        const mov: StockMovement = {
+          id: 'sm_ord_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          inventory_id: inv.id,
+          movement_type: 'usage',
+          gram_change: -totalGramToDeduct,
+          remaining_gram: newStock,
+          reference_type: 'pos_order',
+          reference_id: bookingCode,
+          notes: `Penjualan ${it.meatType.toUpperCase()} - Order ${bookingCode}`,
+          operator_name: operatorName,
+          created_at: nowIso,
+        };
+        newMovements.push(mov);
+
+        if (configured && isValidUuid(inv.id)) {
+          try {
+            const supabase = createClient();
+            await supabase.from('inventory').update({ stock_gram: newStock, updated_at: nowIso }).eq('id', inv.id);
+            await supabase.from('stock_movements').insert({
+              inventory_id: inv.id,
+              movement_type: 'order_sales',
+              gram_change: -totalGramToDeduct,
+              remaining_gram: newStock,
+              reference_type: 'pos_order',
+              reference_id: bookingCode,
+              notes: mov.notes,
+              operator_name: mov.operator_name,
+            });
+          } catch {}
+        }
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('asap_inventory_store', JSON.stringify(updatedInv));
+      const existingMovs = JSON.parse(localStorage.getItem('asap_stock_movements_store') || '[]');
+      localStorage.setItem('asap_stock_movements_store', JSON.stringify([...newMovements, ...existingMovs]));
+      window.dispatchEvent(new Event('asap_inventory_updated'));
+    }
+  } catch (err) {
+    console.warn('Meat deduction warning:', err);
+  }
 }
 
 export async function addItemsToExistingOrder(

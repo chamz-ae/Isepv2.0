@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { DoorOpen, Plus, Edit, CheckCircle, XCircle } from 'lucide-react';
-import { getRooms, updateRoom } from '@/lib/services/roomService';
+import { DoorOpen, Plus, Edit, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { getRooms, updateRoom, clearStaleLocalOrders } from '@/lib/services/roomService';
 import { Room, RoomStatus } from '@/lib/supabase/types';
 import { formatRupiah } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/Card';
@@ -17,6 +17,7 @@ export default function AdminKamarPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Partial<Room> | null>(null);
+  const [syncFeedback, setSyncFeedback] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -26,6 +27,13 @@ export default function AdminKamarPage() {
     const list = await getRooms({ activeOnly: false });
     setRooms(list);
   }
+
+  const handleSyncClean = () => {
+    const res = clearStaleLocalOrders();
+    setSyncFeedback(`Cache lokal dibersihkan (${res.clearedCount} transaksi uji dihapus). Kamar 2 dan seluruh jadwal kembali sinkron.`);
+    loadData();
+    setTimeout(() => setSyncFeedback(''), 4000);
+  };
 
   const handleOpenAdd = () => {
     setEditingRoom({
@@ -69,11 +77,24 @@ export default function AdminKamarPage() {
             Status ketersediaan, kapasitas tamu, foto kabin, dan fasilitas penginapan.
           </p>
         </div>
-        <Button variant="amber" size="sm" onClick={handleOpenAdd}>
-          <Plus className="w-4 h-4 mr-1" />
-          <span>Tambah Kamar Kabin</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSyncClean} title="Bersihkan pesanan uji lokal dan sinkronkan kamar">
+            <RotateCcw className="w-3.5 h-3.5 mr-1 text-stone-600" />
+            <span>Sinkronkan Ulang Kamar</span>
+          </Button>
+          <Button variant="amber" size="sm" onClick={handleOpenAdd}>
+            <Plus className="w-4 h-4 mr-1" />
+            <span>Tambah Kamar Kabin</span>
+          </Button>
+        </div>
       </div>
+
+      {syncFeedback && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {rooms.map((room) => (

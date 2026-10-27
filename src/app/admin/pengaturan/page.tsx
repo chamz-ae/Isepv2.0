@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function AdminPengaturanPage() {
   const [webhooks, setWebhooks] = useState<WebhookIntegration[]>([]);
@@ -46,6 +47,11 @@ export default function AdminPengaturanPage() {
   // Google Sheets Script Modal
   const [isScriptModalOpen, setIsScriptModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Supabase Connection & SQL Fix Modal
+  const [supabaseTestStatus, setSupabaseTestStatus] = useState<{ testing: boolean; message: string; success?: boolean } | null>(null);
+  const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
+  const [isSqlCopied, setIsSqlCopied] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -265,6 +271,108 @@ function doPost(e) {
     link.click();
     document.body.removeChild(link);
   };
+
+  const handleTestSupabaseConnection = async () => {
+    setSupabaseTestStatus({ testing: true, message: 'Menghubungkan ke Supabase...' });
+    try {
+      if (!isSupabaseConfigured()) {
+        setSupabaseTestStatus({
+          testing: false,
+          success: false,
+          message: 'Supabase belum dikonfigurasi. Periksa NEXT_PUBLIC_SUPABASE_URL di .env.local',
+        });
+        return;
+      }
+      const supabase = createClient();
+      const { count, error } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+      if (error) {
+        setSupabaseTestStatus({
+          testing: false,
+          success: false,
+          message: `Koneksi Supabase mengembalikan pesan: ${error.message}. Pastikan script SQL RLS sudah dijalankan di Supabase Dashboard.`,
+        });
+      } else {
+        setSupabaseTestStatus({
+          testing: false,
+          success: true,
+          message: `Berhasil terhubung ke Supabase! (${count ?? 0} transaksi tercatat di database cloud). Data tersinkron live.`,
+        });
+      }
+    } catch (err: any) {
+      setSupabaseTestStatus({
+        testing: false,
+        success: false,
+        message: `Terjadi kendala jaringan: ${err.message}`,
+      });
+    }
+  };
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(supabaseFixSqlCode);
+    setIsSqlCopied(true);
+    setTimeout(() => setIsSqlCopied(false), 2500);
+  };
+
+  const supabaseFixSqlCode = `-- ============================================================
+-- ASAP ISEP — SCRIPT PERBAIKAN RLS & RPC DATABASE SUPABASE
+-- ============================================================
+-- Jalankan di: Supabase Dashboard > SQL Editor > New query > Run
+
+-- 1. Berikan hak akses Publik (Customer Web) untuk tabel guests
+ALTER TABLE public.guests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public insert guests" ON public.guests;
+CREATE POLICY "Public insert guests" ON public.guests FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public select guests" ON public.guests FOR SELECT;
+CREATE POLICY "Public select guests" ON public.guests FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public update guests" ON public.guests FOR UPDATE;
+CREATE POLICY "Public update guests" ON public.guests FOR UPDATE USING (true);
+
+-- 2. Pastikan tabel orders dapat dibuat & dibaca publik
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public insert orders" ON public.orders;
+CREATE POLICY "Public insert orders" ON public.orders FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public select orders" ON public.orders FOR SELECT;
+CREATE POLICY "Public select orders" ON public.orders FOR SELECT USING (true);
+
+-- 3. Order items
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public insert order items" ON public.order_items;
+CREATE POLICY "Public insert order items" ON public.order_items FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public select order items" ON public.order_items FOR SELECT;
+CREATE POLICY "Public select order items" ON public.order_items FOR SELECT USING (true);
+
+-- 4. Payments
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public select own payments" ON public.payments;
+CREATE POLICY "Public select own payments" ON public.payments FOR SELECT USING (true);
+
+-- 5. Stored Procedure Ketersediaan Kamar
+CREATE OR REPLACE FUNCTION public.rpc_check_room_availability(
+    p_room_id UUID,
+    p_check_in DATE,
+    p_check_out DATE,
+    p_exclude_order_id UUID DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    conflict_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO conflict_count
+    FROM public.orders
+    WHERE room_id = p_room_id
+      AND order_status != 'cancelled'
+      AND (p_exclude_order_id IS NULL OR id != p_exclude_order_id)
+      AND check_in_date < p_check_out
+      AND check_out_date > p_check_in;
+
+    RETURN (conflict_count = 0);
+END;
+$$ LANGUAGE plpgsql STABLE;
+`;
 
   const handleResetTestingData = () => {
     if (
@@ -549,6 +657,105 @@ function doPost(e) {
 
             <div className="flex justify-end pt-2 border-t border-stone-200">
               <Button variant="outline" size="sm" onClick={() => setIsScriptModalOpen(false)}>
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* 4. Supabase Cloud Connection & Archival Strategy */}
+      <Card>
+        <CardHeader
+          title="4. Koneksi Supabase & Strategi Penyimpanan Data (10 Tahun)"
+          subtitle="Status koneksi database cloud, script SQL perbaikan RLS, dan rekomendasi retensi data"
+        />
+        <div className="space-y-4 text-xs">
+          <div className="p-4 bg-stone-50 rounded-xl border border-stone-200 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <span className="font-bold text-stone-900 text-sm block">Database Supabase Cloud</span>
+                <span className="text-stone-500 font-mono text-[11px] block mt-0.5">
+                  URL: {process.env.NEXT_PUBLIC_SUPABASE_URL || 'Belum diatur'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setIsSqlModalOpen(true)}>
+                  <Code className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                  <span>Lihat Script SQL RLS</span>
+                </Button>
+                <Button
+                  variant="amber"
+                  size="sm"
+                  onClick={handleTestSupabaseConnection}
+                  disabled={supabaseTestStatus?.testing}
+                >
+                  <Database className="w-3.5 h-3.5 mr-1" />
+                  <span>{supabaseTestStatus?.testing ? 'Mengecek...' : 'Test Koneksi Supabase'}</span>
+                </Button>
+              </div>
+            </div>
+
+            {supabaseTestStatus && (
+              <div
+                className={`p-3 rounded-lg font-mono text-xs ${
+                  supabaseTestStatus.success ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                {supabaseTestStatus.message}
+              </div>
+            )}
+          </div>
+
+          {/* Saran Strategi Retensi Data 10 Tahun */}
+          <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-stone-700">
+            <div className="font-bold text-amber-900 flex items-center gap-1.5 text-xs">
+              <ShieldCheck className="w-4 h-4 text-amber-700" />
+              <span>Saran Arsitektur Retensi Data 10 Tahun (Supabase vs Excel/Sheets)</span>
+            </div>
+            <p className="text-[11px] leading-relaxed">
+              <strong>Analisis Kapasitas:</strong> Paket Free Tier Supabase menyediakan kuota penyimpanan <strong>500 MB</strong>. Rata-rata 1 baris transaksi pesanan berukuran ~0.5 KB. Jika per tahun terdapat 10.000 pesanan, data 10 tahun hanya memakan <strong>~50 MB</strong> (kurang dari 10% kuota gratis!).
+            </p>
+            <p className="text-[11px] leading-relaxed">
+              <strong>Rekomendasi Terbaik:</strong> Tetap simpan data <strong>1–2 tahun terakhir</strong> di Supabase agar fitur pencarian tamu loyal, statistik, dan riwayat pesanan di dashboard tetap cepat dan interaktif. Data lawas di atas 2 tahun dapat diarsipkan/diekspor ke Google Sheets / Excel menggunakan Webhook Realtime kami, sehingga Supabase selalu ringan dan tidak pernah kehabisan kuota selama lebih dari 10 tahun!
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* SQL Fix Modal */}
+      {isSqlModalOpen && (
+        <Modal
+          isOpen={isSqlModalOpen}
+          onClose={() => setIsSqlModalOpen(false)}
+          title="Script SQL Perbaikan RLS & RPC Supabase"
+          subtitle="Jalankan script ini di Supabase Dashboard > SQL Editor untuk memastikan hak akses publik terbuka"
+          maxWidth="lg"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center justify-between p-3 bg-stone-100 rounded-xl">
+              <span className="font-semibold text-stone-700">
+                Membuka hak akses tamu (guests) & fungsi ketersediaan kamar
+              </span>
+              <Button
+                variant="amber"
+                size="sm"
+                onClick={handleCopySql}
+                className={`font-bold flex items-center gap-1.5 ${isSqlCopied ? '!bg-emerald-600 !text-white' : ''}`}
+              >
+                {isSqlCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isSqlCopied ? 'Tersalin ke Clipboard!' : 'Salin Script SQL'}</span>
+              </Button>
+            </div>
+
+            <div className="relative">
+              <pre className="p-4 bg-stone-900 text-stone-100 rounded-xl font-mono text-[11px] overflow-x-auto max-h-96 leading-relaxed border border-stone-800">
+                {supabaseFixSqlCode}
+              </pre>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-stone-200">
+              <Button variant="outline" size="sm" onClick={() => setIsSqlModalOpen(false)}>
                 Tutup
               </Button>
             </div>

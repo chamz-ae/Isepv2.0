@@ -24,7 +24,7 @@ INSERT INTO public.menus (
 ) VALUES
 -- Daging Asap Utama (Gramasi Fleksibel, default awal 100g)
 (
-    'm0000001-0000-0000-0000-000000000001',
+    'd0000001-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Brisket Asap',
     'Brisket sapi pilihan diasap lambat dengan kayu keras lokal hingga bark renyah gurih dan smoke ring sempurna.',
@@ -42,7 +42,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000002-0000-0000-0000-000000000002',
+    'd0000002-0000-0000-0000-000000000002',
     'c0000001-0000-0000-0000-000000000001',
     'Lidah Sapi Asap',
     'Lidah sapi bertekstur empuk lumer dengan aroma asap khas dan bumbu marinasi rempah tradisional.',
@@ -60,7 +60,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000003-0000-0000-0000-000000000001',
+    'd0000003-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Domba Asap Bumbu Kerecek',
     'Potongan daging domba muda diasap harum, disajikan dengan racikan bumbu kerecek pedas gurih khas daerah.',
@@ -78,7 +78,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000004-0000-0000-0000-000000000001',
+    'd0000004-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Ayam Asap',
     'Ayam utuh/potong diasap perlahan dengan rempah asap spesial, kulit kecokelatan mengkilap dan daging berjus.',
@@ -96,7 +96,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000005-0000-0000-0000-000000000001',
+    'd0000005-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Bebek Asap',
     'Bebek pilihan dengan bumbu meresap hingga ke serat tulang, diasap kayu pilihan menghasilkan aroma legendaris.',
@@ -114,7 +114,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1514944298352-78d122c1e7fd?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000006-0000-0000-0000-000000000001',
+    'd0000006-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Salmon Asap',
     'Fillet salmon segar diasap lembut suhu terjaga, kaya rasa alami, lembut dan bercita rasa gurih luhur.',
@@ -133,7 +133,7 @@ INSERT INTO public.menus (
 ),
 -- Sop & Kuah (Konfigurasi harga rentang Rp80.000–Rp180.000)
 (
-    'm0000007-0000-0000-0000-000000000001',
+    'd0000007-0000-0000-0000-000000000001',
     'c0000002-0000-0000-0000-000000000002',
     'Sup Jamur Labu Asap',
     'Sup hangat dari labu parang panggang dan jamur hutan liar berpadu aroma asap kayu alami.',
@@ -152,7 +152,7 @@ INSERT INTO public.menus (
 ),
 -- Sayuran & Pelengkap
 (
-    'm0000008-0000-0000-0000-000000000001',
+    'd0000008-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Salad Hutan',
     'Daun-daunan liar segar dataran tinggi dengan dressing asam manis segar dan taburan biji-bijian.',
@@ -170,7 +170,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000009-0000-0000-0000-000000000001',
+    'd0000009-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Terong Bakar dan Jamur',
     'Terong ungu dibakar arang dipadukan jamur tiram oseng gurih bumbu bawang.',
@@ -188,7 +188,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000010-0000-0000-0000-000000000001',
+    'd0000010-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Kentang Asap',
     'Kentang utuh diasap lambat, empuk merekah dengan sentuhan mentega bawang dan garam laut.',
@@ -206,7 +206,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000011-0000-0000-0000-000000000001',
+    'd0000011-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Ubi Asap',
     'Ubi madu panggang asap hangat beraroma karamel alami yang manis legit.',
@@ -224,7 +224,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1596560548464-f010549b84d7?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000012-0000-0000-0000-000000000001',
+    'd0000012-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Tomat',
     'Tomat panggang arang manis segar dengan taburan oregano dan minyak zaitun.',
@@ -242,7 +242,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000013-0000-0000-0000-000000000001',
+    'd0000013-0000-0000-0000-000000000001',
     'c0000003-0000-0000-0000-000000000003',
     'Bombay',
     'Bawang bombay karamel asap panggang manis gurih sebagai pendamping daging.',
@@ -261,7 +261,7 @@ INSERT INTO public.menus (
 ),
 -- Nasi & Karbohidrat (Aturan Khusus: Nasi Goreng Fixed 30g Daging)
 (
-    'm0000014-0000-0000-0000-000000000001',
+    'd0000014-0000-0000-0000-000000000001',
     'c0000004-0000-0000-0000-000000000004',
     'Nasi Goreng Daging Asap',
     'Nasi goreng wajan besi dengan potongan daging sapi asap 30g, aroma smokey pekat dan telur mata sapi.',
@@ -279,7 +279,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000015-0000-0000-0000-000000000001',
+    'd0000015-0000-0000-0000-000000000001',
     'c0000004-0000-0000-0000-000000000004',
     'Nasi Goreng Domba Asap',
     'Nasi goreng rempah istimewa dengan potongan domba asap 30g bercita rasa gurih pedas nikmat.',
@@ -297,7 +297,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000016-0000-0000-0000-000000000001',
+    'd0000016-0000-0000-0000-000000000001',
     'c0000004-0000-0000-0000-000000000004',
     'Nasi Putih',
     'Nasi beras pandan wangi pulen hangat mengepul.',
@@ -324,7 +324,7 @@ INSERT INTO public.menus (
     is_available, is_active, image_url
 ) VALUES
 (
-    'm0000017-0000-0000-0000-000000000001',
+    'd0000017-0000-0000-0000-000000000001',
     'c0000005-0000-0000-0000-000000000005',
     'Marlin Asap',
     'Ikan marlin laut dalam diasap kayu buah segar, bertekstur padat lembut tanpa amis khas pesisir.',
@@ -342,7 +342,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000018-0000-0000-0000-000000000001',
+    'd0000018-0000-0000-0000-000000000001',
     'c0000005-0000-0000-0000-000000000005',
     'Ungkep Ayam Kampung',
     'Ayam kampung empuk bumbu kuning lengkuas khas desa yang diungkep api kecil berjam-jam.',
@@ -360,7 +360,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000019-0000-0000-0000-000000000001',
+    'd0000019-0000-0000-0000-000000000001',
     'c0000005-0000-0000-0000-000000000005',
     'Kucai Telur Asin',
     'Sayur kucai sawah segar ditumis gurih dengan butiran telur asin Brebes.',
@@ -378,7 +378,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000020-0000-0000-0000-000000000001',
+    'd0000020-0000-0000-0000-000000000001',
     'c0000005-0000-0000-0000-000000000005',
     'Mangut Lele Asap',
     'Lele lokal diasap arang lalu dimasak dalam kuah mangut santan pedas gurih aroma daun kemangi.',
@@ -396,7 +396,7 @@ INSERT INTO public.menus (
     'https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=800&q=80'
 ),
 (
-    'm0000021-0000-0000-0000-000000000001',
+    'd0000021-0000-0000-0000-000000000001',
     'c0000005-0000-0000-0000-000000000005',
     'Pepes Tahu',
     'Tahu sutra lembut dibumbui daun kemangi dan rempah parut, dibungkus daun pisang bakar.',

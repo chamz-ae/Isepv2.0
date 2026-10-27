@@ -2,50 +2,322 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   ASAP ISEP — LUXURY HOSPITALITY CSS SYSTEM
+   Inspired by: Noma, Eleven Madison Park, Amanjiwo, Capella
+   Font Stack:
+     - Headlines: Cormorant Garamond (high-contrast serif, luxury editorial)
+     - Sub-headers: Playfair Display (classic serif elegance)
+     - Body/UI: DM Sans (modern clarity)
+     - Mono/Tags: DM Mono (clean coding details)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300;1,9..40,400&family=DM+Mono:wght@300;400;500&display=swap');
+
 :root {
-  --background: #09130e;
-  --foreground: #f4f3ee;
+  --background: #080e0b;
+  --foreground: #ede8df;
+
+  /* Design Tokens */
+  --gold: #c9a96e;
+  --gold-light: #e8c99a;
+  --gold-dark: #9a7040;
+  --cream: #f4ede0;
+  --cream-dark: #ddd0bc;
+  --forest-deep: #071009;
+  --forest-dark: #0e1e14;
+  --forest-mid: #162a1e;
+  --forest-edge: #1e3828;
+  --smoke: #3a3530;
+  --text-primary: #ede8df;
+  --text-secondary: #b8ad9e;
+  --text-muted: #786e61;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   color: var(--foreground);
-  background: var(--background);
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-  background-image: 
-    radial-gradient(ellipse at 50% 0%, rgba(35, 75, 55, 0.18) 0%, transparent 65%),
-    radial-gradient(ellipse at 80% 90%, rgba(26, 45, 33, 0.25) 0%, transparent 60%);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(138, 90, 30, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(20, 55, 35, 0.20) 0%, transparent 50%);
   background-attachment: fixed;
+  font-feature-settings: 'kern', 'liga', 'calt';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Luxury Heading Utility Classes */
+.font-display {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+.font-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+.font-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.font-code {
+  font-family: 'DM Mono', 'Courier New', monospace;
 }
 
-/* Custom subtle forest scrollbars */
+/* ============================================================
+   REFINED SCROLLBAR
+   ============================================================ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(10, 22, 16, 0.6);
+  background: var(--forest-deep);
 }
 ::-webkit-scrollbar-thumb {
-  background: #28493c;
+  background: #2a4035;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4e8e72;
+  background: var(--gold-dark);
 }
 
-/* Subtle organic grain overlay helper */
-.forest-card {
-  background: linear-gradient(135deg, rgba(17, 34, 25, 0.85) 0%, rgba(10, 22, 16, 0.95) 100%);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(78, 142, 114, 0.18);
+/* ============================================================
+   TEXT SELECTION
+   ============================================================ */
+::selection {
+  background: rgba(201, 169, 110, 0.30);
+  color: var(--cream);
 }
 
-.forest-card:hover {
-  border-color: rgba(113, 170, 143, 0.32);
+/* ============================================================
+   GRAIN TEXTURE OVERLAY
+   Used on hero sections to add organic texture feel
+   ============================================================ */
+.grain-overlay {
+  position: relative;
 }
+.grain-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ============================================================
+   LUXURY CARD COMPONENT
+   ============================================================ */
+.luxury-card {
+  background: linear-gradient(135deg, rgba(22, 42, 30, 0.70) 0%, rgba(14, 30, 20, 0.90) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(201, 169, 110, 0.12);
+  transition: border-color 0.4s ease, transform 0.4s ease, box-shadow 0.4s ease;
+}
+.luxury-card:hover {
+  border-color: rgba(201, 169, 110, 0.28);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(201, 169, 110, 0.10);
+}
+
+/* ============================================================
+   GOLD DIVIDER LINE
+   ============================================================ */
+.divider-gold {
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 0 auto;
+}
+.divider-gold-left {
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+
+/* ============================================================
+   BUTTON VARIANTS
+   ============================================================ */
+.btn-luxury-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.875rem 2rem;
+  background: linear-gradient(135deg, #9a7040 0%, #c9a96e 50%, #9a7040 100%);
+  background-size: 200% auto;
+  color: var(--forest-deep);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.688rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 0.25rem;
+  transition: background-position 0.4s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 8px 32px rgba(201, 169, 110, 0.25);
+}
+.btn-luxury-primary:hover {
+  background-position: right center;
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(201, 169, 110, 0.35);
+}
+
+.btn-luxury-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.875rem 2rem;
+  background: transparent;
+  color: var(--gold-light);
+  border: 1px solid rgba(201, 169, 110, 0.40);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.688rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: 0.25rem;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.25s ease;
+}
+.btn-luxury-outline:hover {
+  background: rgba(201, 169, 110, 0.08);
+  border-color: rgba(201, 169, 110, 0.70);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   INPUT LUXURY
+   ============================================================ */
+.input-luxury {
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  background: rgba(8, 14, 11, 0.60);
+  border: 1px solid rgba(201, 169, 110, 0.20);
+  border-radius: 0.25rem;
+  color: var(--cream);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.05em;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  outline: none;
+}
+.input-luxury::placeholder {
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+.input-luxury:focus {
+  border-color: rgba(201, 169, 110, 0.60);
+  box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.08);
+}
+
+/* ============================================================
+   NAV LINK HOVER UNDERLINE
+   ============================================================ */
+.nav-link-luxury {
+  position: relative;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.688rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(232, 201, 154, 0.70);
+  transition: color 0.3s ease;
+  padding-bottom: 4px;
+}
+.nav-link-luxury::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--gold);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-link-luxury:hover {
+  color: var(--gold-light);
+}
+.nav-link-luxury:hover::after,
+.nav-link-luxury.active::after {
+  width: 100%;
+}
+.nav-link-luxury.active {
+  color: var(--gold-light);
+}
+
+/* ============================================================
+   SECTION LABEL (Eye-brow text)
+   ============================================================ */
+.label-luxury {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ============================================================
+   IMAGE HOVER SCALE (smooth)
+   ============================================================ */
+.img-hover-scale {
+  overflow: hidden;
+}
+.img-hover-scale img,
+.img-hover-scale > div > img {
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.img-hover-scale:hover img,
+.img-hover-scale:hover > div > img {
+  transform: scale(1.06);
+}
+
+/* ============================================================
+   KEYFRAME ANIMATIONS
+   ============================================================ */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes reveal-width {
+  from { width: 0; }
+  to { width: 48px; }
+}
+
+@keyframes glow-amber {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-fade-in {
+  animation: fade-in 0.6s ease forwards;
+}
+.animate-glow-amber {
+  animation: glow-amber 3s ease-in-out infinite;
+}
+
+/* Staggered delays */
+.delay-100 { animation-delay: 0.1s; opacity: 0; }
+.delay-200 { animation-delay: 0.2s; opacity: 0; }
+.delay-300 { animation-delay: 0.3s; opacity: 0; }
+.delay-400 { animation-delay: 0.4s; opacity: 0; }
+.delay-500 { animation-delay: 0.5s; opacity: 0; }
+.delay-600 { animation-delay: 0.6s; opacity: 0; }
+.delay-700 { animation-delay: 0.7s; opacity: 0; }

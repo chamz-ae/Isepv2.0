@@ -4,7 +4,7 @@ import { Room, RestaurantTable } from '@/lib/supabase/types';
 // Default initial official rooms
 export const INITIAL_ROOMS: Room[] = [
   {
-    id: 'r0000001-0000-0000-0000-000000000001',
+    id: 'e0000001-0000-0000-0000-000000000001',
     room_number: 'LODGE-01',
     room_name: 'Timber Haven Suite',
     room_type: 'Deluxe Timber Lodge',
@@ -19,7 +19,7 @@ export const INITIAL_ROOMS: Room[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'r0000002-0000-0000-0000-000000000002',
+    id: 'e0000002-0000-0000-0000-000000000002',
     room_number: 'LODGE-02',
     room_name: 'The Smoke Master Sanctuary',
     room_type: 'Sanctuary Suite',
@@ -34,7 +34,7 @@ export const INITIAL_ROOMS: Room[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'r0000003-0000-0000-0000-000000000003',
+    id: 'e0000003-0000-0000-0000-000000000003',
     room_number: 'LODGE-03',
     room_name: 'Cottage Embun Pinus',
     room_type: 'Rustic Forest Cabin',
@@ -92,7 +92,11 @@ export async function getRooms(options?: { activeOnly?: boolean; checkIn?: strin
     const stored = localStorage.getItem('asap_rooms_store');
     if (stored) {
       try {
-        const rooms: Room[] = JSON.parse(stored);
+        let rooms: Room[] = JSON.parse(stored);
+        rooms = rooms.map((r) => ({
+          ...r,
+          id: r.id.startsWith('r000000') ? 'e' + r.id.slice(1) : r.id,
+        }));
         return options?.activeOnly !== false ? rooms.filter((r) => r.is_active) : rooms;
       } catch {
         // Fallback
@@ -111,13 +115,23 @@ export async function checkRoomDateAvailability(roomId: string, checkIn: string,
   if (configured) {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.rpc('rpc_check_room_availability', {
-        p_room_id: roomId,
-        p_check_in: checkIn,
-        p_check_out: checkOut,
-        p_exclude_order_id: excludeOrderId || null,
-      });
-      if (!error && typeof data === 'boolean') return data;
+      // Direct query on Supabase orders table
+      let query = supabase
+        .from('orders')
+        .select('id')
+        .eq('room_id', roomId)
+        .neq('order_status', 'cancelled')
+        .lt('check_in_date', checkOut)
+        .gt('check_out_date', checkIn);
+
+      if (excludeOrderId) {
+        query = query.neq('id', excludeOrderId);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return data.length === 0;
+      }
     } catch {
       // Fallback
     }
@@ -127,19 +141,37 @@ export async function checkRoomDateAvailability(roomId: string, checkIn: string,
   if (typeof window !== 'undefined') {
     const storedOrders = localStorage.getItem('asap_orders_store');
     if (storedOrders) {
-      const orders = JSON.parse(storedOrders);
-      const conflict = orders.some((o: any) => {
-        if (o.room_id !== roomId) return false;
-        if (o.order_status === 'cancelled') return false;
-        if (excludeOrderId && o.id === excludeOrderId) return false;
-        if (!o.check_in_date || !o.check_out_date) return false;
-        return o.check_in_date < checkOut && o.check_out_date > checkIn;
-      });
-      return !conflict;
+      try {
+        const orders = JSON.parse(storedOrders);
+        const conflict = orders.some((o: any) => {
+          if (o.room_id !== roomId) return false;
+          if (o.order_status === 'cancelled') return false;
+          if (excludeOrderId && o.id === excludeOrderId) return false;
+          if (!o.check_in_date || !o.check_out_date) return false;
+          return o.check_in_date < checkOut && o.check_out_date > checkIn;
+        });
+        return !conflict;
+      } catch {
+        // Fallback
+      }
     }
   }
 
   return true;
+}
+
+export function clearStaleLocalOrders(): { clearedCount: number } {
+  if (typeof window === 'undefined') return { clearedCount: 0 };
+  try {
+    const stored = localStorage.getItem('asap_orders_store');
+    if (!stored) return { clearedCount: 0 };
+    const orders: any[] = JSON.parse(stored);
+    localStorage.removeItem('asap_orders_store');
+    window.dispatchEvent(new Event('asap_orders_updated'));
+    return { clearedCount: orders.length };
+  } catch {
+    return { clearedCount: 0 };
+  }
 }
 
 export async function getTables(): Promise<RestaurantTable[]> {

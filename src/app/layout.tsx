@@ -1,31 +1,19 @@
 import type { Metadata, Viewport } from 'next';
-import localFont from 'next/font/local';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { CustomerOrderProvider } from '@/context/CustomerOrderContext';
 import { CustomerNav } from '@/components/customer/CustomerNav';
 import { PWARegistration } from '@/components/PWARegistration';
 
-const geistSans = localFont({
-  src: './fonts/GeistVF.woff',
-  variable: '--font-geist-sans',
-  weight: '100 900',
-});
-
-const geistMono = localFont({
-  src: './fonts/GeistMonoVF.woff',
-  variable: '--font-geist-mono',
-  weight: '100 900',
-});
-
 export const metadata: Metadata = {
-  title: 'ASAP ISEP — Daging Asap & Lodging',
-  description: 'Sistem Terintegrasi Smokehouse, Penginapan Kabin Kayu, POS, Inventori Daging & Reservasi Tamu',
+  title: 'ASAP ISEP — Daging Asap & Kabin Kayu Cisarua, Puncak',
+  description: 'Restoran daging asap lambat kayu rambutan & penginapan kabin kayu jati di lereng hutan Cisarua Puncak. Reservasi online, menu gramasi fleksibel.',
   manifest: '/manifest.json',
+  keywords: ['daging asap', 'restoran puncak', 'kabin cisarua', 'smokehouse indonesia', 'penginapan puncak bogor'],
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0c0a09',
+  themeColor: '#080e0b',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -40,8 +28,11 @@ export default function RootLayout({
     <html lang="id">
       <head>
         <link rel="manifest" href="/manifest.json" />
+        {/* Preconnect for Google Fonts performance */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-forest-950 text-stone-100 min-h-screen flex flex-col font-sans selection:bg-emerald-600 selection:text-white`}>
+      <body className="antialiased bg-forest-950 text-cream-50 min-h-screen flex flex-col font-sans">
         <AuthProvider>
           <CustomerOrderProvider>
             <PWARegistration />
